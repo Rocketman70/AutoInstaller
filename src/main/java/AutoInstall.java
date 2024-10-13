@@ -1,10 +1,13 @@
 package src.main.java;
+
 import java.awt.BorderLayout;
 import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
 import javax.swing.*;
+import java.util.HashMap;
+import java.util.Map.Entry;
 
 //TO-DO: Add functionality to run button to execute commands.
 
@@ -15,7 +18,8 @@ public class AutoInstall {
     private JScrollPane scrollPane;
     private JPanel bottom;
     private JFrame app;
-    private File[] files;
+    private static File[] files;
+    private static HashMap<String, Boolean> checklist;
 
     public void gui() {
         //Create frame for GUI.
@@ -64,6 +68,10 @@ public class AutoInstall {
                     files = dir.listFiles();
                     checkBoxPanel.removeAll();
 
+                    checklist = new HashMap<String, Boolean>();
+                    checklist.clear();
+                    
+
                     // Add default checkboxes for common applications available through WinGet.
                     JCheckBox webEx = new JCheckBox("Cisco Webex");
                     JCheckBox teams = new JCheckBox("Microsoft Teams");
@@ -72,9 +80,33 @@ public class AutoInstall {
                     checkBoxPanel.add(teams);
                     checkBoxPanel.add(mEdge);
 
+                    checklist.put("Microsoft Teams", false);
+                    checklist.put("Cisco Webex", false);
+                    checklist.put("Microsoft Edge", false);
+
                     //Add checkboxes for each file in the directory.
                     for (File file : files) {
                         JCheckBox checkBox = new JCheckBox(file.getName());
+                        checklist.put(file.getName(), false);
+                        checkBox.addActionListener(new ActionListener() {
+                            @Override
+                            public void actionPerformed(ActionEvent e) {
+                                checkBox.setSelected(checkBox.isSelected());
+                                if (checkBox.isSelected()) {
+                                    for (Entry<String, Boolean> entry : checklist.entrySet()) {
+                                        if (entry.getKey().equals(checkBox.getText())) {
+                                            entry.setValue(true);
+                                        }
+                                    }
+                                } else {
+                                    for (Entry<String, Boolean> entry : checklist.entrySet()) {
+                                        if (entry.getKey().equals(checkBox.getText())) {
+                                            entry.setValue(false);
+                                        }
+                                    }
+                                }
+                            }
+                        });
                         checkBoxPanel.add(checkBox);
                     }
                     //Refresh the GUI to display checkboxes.
@@ -118,7 +150,47 @@ public class AutoInstall {
     }
 
     public static void executeCommands() {
-        //TO-DO: Add functionality to run button to execute commands using Process Builder.
+        try {
+            // Install WinGet (unchanged)
+            ProcessBuilder windowsCom = new ProcessBuilder(
+                "powershell.exe", "-Command", 
+                "Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe");
+            windowsCom.start();
+    
+            for (Entry<String, Boolean> entry : checklist.entrySet()) {
+                if (entry.getValue()) {
+                    switch (entry.getKey()) {
+                        case "Microsoft Teams":
+                            ProcessBuilder teams = new ProcessBuilder(
+                                "winget", "install", "Microsoft.Teams");
+                            teams.start();
+                            break;
+                        case "Cisco Webex":
+                            ProcessBuilder webex = new ProcessBuilder(
+                                "winget", "install", "Cisco.Webex");
+                            webex.start();
+                            break;
+                        case "Microsoft Edge":
+                            ProcessBuilder edge = new ProcessBuilder(
+                                "winget", "install", "Microsoft.Edge");
+                            edge.start();
+                            break;
+                        default:
+                            // Check if the entry key ends with .msi
+                            if (entry.getKey().toLowerCase().endsWith(".msi")) {
+                                String msiPath = new File(files[0].getParent(), entry.getKey()).getAbsolutePath();
+                                ProcessBuilder msiInstaller = new ProcessBuilder(
+                                    "powershell.exe", "-Command",
+                                    "Start-Process msiexec.exe -ArgumentList '/i \"" + msiPath + "\" /qn' -Wait -NoNewWindow");
+                                msiInstaller.start();
+                            }
+                            break;
+                    }
+                }
+            }
+        } catch (Exception e) {
+            e.printStackTrace();
+        }
     }
     public static void main(String[] args) {
         //Create instance of GUI.
