@@ -5,7 +5,12 @@ import java.awt.FlowLayout;
 import java.awt.event.ActionEvent;
 import java.awt.event.ActionListener;
 import java.io.File;
+import java.io.IOException;
+import java.nio.file.Path;
+import java.nio.file.Paths;
+
 import javax.swing.*;
+import java.nio.file.Files;
 import java.util.HashMap;
 import java.util.Map.Entry;
 
@@ -85,28 +90,19 @@ public class AutoInstall {
                     checklist.put("Microsoft Edge", false);
 
                     //Add checkboxes for each file in the directory.
+                    //Add checkboxes for each file in the directory.
                     for (File file : files) {
                         JCheckBox checkBox = new JCheckBox(file.getName());
                         checklist.put(file.getName(), false);
+
                         checkBox.addActionListener(new ActionListener() {
                             @Override
                             public void actionPerformed(ActionEvent e) {
-                                checkBox.setSelected(checkBox.isSelected());
-                                if (checkBox.isSelected()) {
-                                    for (Entry<String, Boolean> entry : checklist.entrySet()) {
-                                        if (entry.getKey().equals(checkBox.getText())) {
-                                            entry.setValue(true);
-                                        }
-                                    }
-                                } else {
-                                    for (Entry<String, Boolean> entry : checklist.entrySet()) {
-                                        if (entry.getKey().equals(checkBox.getText())) {
-                                            entry.setValue(false);
-                                        }
-                                    }
-                                }
+                                // Update the checklist directly based on the checkbox state.
+                                checklist.put(checkBox.getText(), checkBox.isSelected());
                             }
                         });
+
                         checkBoxPanel.add(checkBox);
                     }
                     //Refresh the GUI to display checkboxes.
@@ -129,7 +125,8 @@ public class AutoInstall {
         runButton.addActionListener(new ActionListener() {
             @Override
             public void actionPerformed(ActionEvent e) {
-                executeCommands();
+                //Virtual thread to execute commands. 
+                Thread.ofVirtual().start(() -> executeCommands());
             }
         });
 
@@ -159,6 +156,7 @@ public class AutoInstall {
     
             for (Entry<String, Boolean> entry : checklist.entrySet()) {
                 if (entry.getValue()) {
+                    //Handle cases for Winget Applications. Otherwise install selected MSI files.
                     switch (entry.getKey()) {
                         case "Microsoft Teams":
                             ProcessBuilder teams = new ProcessBuilder(
@@ -192,10 +190,39 @@ public class AutoInstall {
             e.printStackTrace();
         }
     }
+
+    public static boolean isAdmin() {
+        // Choose a protected system directory
+        String systemPath = System.getenv("SystemRoot") + File.separator + "System32";
+        Path testPath = Paths.get(systemPath, "test_write_access.tmp");
+
+        try {
+            // Try to create a temporary file in the system directory
+            Files.createFile(testPath);
+            // If successful, delete the file and return true
+            Files.delete(testPath);
+            return true;
+        } catch (IOException e) {
+            // If an exception is thrown, the program doesn't have elevated rights
+            return false;
+        }
+    }
     public static void main(String[] args) {
-        //Create instance of GUI.
-        AutoInstall autoInstall = new AutoInstall();
-        autoInstall.gui();
+        if (isAdmin()) {
+            AutoInstall autoInstall = new AutoInstall();
+            autoInstall.gui();
+        } else {
+            JOptionPane.showOptionDialog(
+                null, 
+                "Please run this program as an administrator.", 
+                "Error",
+                JOptionPane.DEFAULT_OPTION, 
+                JOptionPane.ERROR_MESSAGE,
+                null,
+                new Object[] {"Exit"},
+                "Exit");
+        }
+        
         
     }
 }
