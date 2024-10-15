@@ -148,29 +148,43 @@ public class AutoInstall {
 
     public static void executeCommands() {
         try {
-            // Install WinGet (unchanged)
-            ProcessBuilder windowsCom = new ProcessBuilder(
-                "powershell.exe", "-Command", 
-                "Add-AppxPackage -RegisterByFamilyName -MainPackage Microsoft.DesktopAppInstaller_8wekyb3d8bbwe");
-            windowsCom.start();
+            // Install WinGet
+            ProcessBuilder installWinget = new ProcessBuilder(
+                "powershell.exe", "-Command",
+                "Invoke-WebRequest -Uri https://github.com/microsoft/winget-cli/releases/latest/download/Microsoft.DesktopAppInstaller_8wekyb3d8bbwe.msixbundle -OutFile winget.msixbundle; " +
+                "Add-AppxPackage .\\winget.msixbundle"
+            );
+            installWinget.start().waitFor();  // Wait for WinGet installation to complete
+    
+            // Accept source agreements
+            ProcessBuilder acceptAgreements = new ProcessBuilder(
+                "winget", "install", "--accept-source-agreements"
+            );
+            acceptAgreements.start().waitFor();  // Wait for agreement acceptance to complete
     
             for (Entry<String, Boolean> entry : checklist.entrySet()) {
                 if (entry.getValue()) {
-                    //Handle cases for Winget Applications. Otherwise install selected MSI files.
+                    // Handle cases for Winget Applications. Otherwise install selected MSI files.
                     switch (entry.getKey()) {
                         case "Microsoft Teams":
                             ProcessBuilder teams = new ProcessBuilder(
-                                "winget", "install", "Microsoft.Teams");
+                                "winget", "install", "Microsoft.Teams", 
+                                "--accept-package-agreements", "--accept-source-agreements"
+                            );
                             teams.start();
                             break;
                         case "Cisco Webex":
                             ProcessBuilder webex = new ProcessBuilder(
-                                "winget", "install", "Cisco.Webex");
+                                "winget", "install", "Cisco.Webex", 
+                                "--accept-package-agreements", "--accept-source-agreements"
+                            );
                             webex.start();
                             break;
                         case "Microsoft Edge":
                             ProcessBuilder edge = new ProcessBuilder(
-                                "winget", "install", "Microsoft.Edge");
+                                "winget", "install", "Microsoft.Edge", 
+                                "--accept-package-agreements", "--accept-source-agreements"
+                            );
                             edge.start();
                             break;
                         default:
@@ -179,7 +193,8 @@ public class AutoInstall {
                                 String msiPath = new File(files[0].getParent(), entry.getKey()).getAbsolutePath();
                                 ProcessBuilder msiInstaller = new ProcessBuilder(
                                     "powershell.exe", "-Command",
-                                    "Start-Process msiexec.exe -ArgumentList '/i \"" + msiPath + "\" /qn' -Wait -NoNewWindow");
+                                    "Start-Process msiexec.exe -ArgumentList '/i \"" + msiPath + "\" /qn' -Wait -NoNewWindow"
+                                );
                                 msiInstaller.start();
                             }
                             break;

@@ -1,2 +1,4 @@
 #Ignore vscode 
 .vscode/
+src/main/java/jarmaker.sh
+src/main/java/AutoInstall.jar
